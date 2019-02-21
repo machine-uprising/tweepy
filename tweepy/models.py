@@ -469,6 +469,16 @@ class Media(Model):
             setattr(media, k, v)
         return media
 
+class MediaAsync(Model):
+
+    @classmethod
+    def parse(cls, api, json):
+        media = cls(api)
+        setattr(media, '_json', json)
+        for k, v in json.items():
+            setattr(media, k, v)
+
+        return media
 
 class ModelFactory(object):
     """
@@ -488,6 +498,7 @@ class ModelFactory(object):
     relation = Relation
     relationship = Relationship
     media = Media
+    media_upload_async = MediaAsync
 
     json = JSONModel
     ids = IDModel

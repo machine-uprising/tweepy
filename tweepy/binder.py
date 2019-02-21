@@ -26,7 +26,7 @@ log = logging.getLogger('tweepy.binder')
 def bind_api(**config):
 
     class APIMethod(object):
-
+        
         api = config['api']
         path = config['path']
         payload_type = config.get('payload_type', None)
@@ -47,6 +47,7 @@ def bind_api(**config):
                 raise TweepError('Authentication required!')
 
             self.post_data = kwargs.pop('post_data', None)
+            self.post_json = kwargs.pop('post_json',False)
             self.retry_count = kwargs.pop('retry_count',
                                           api.retry_count)
             self.retry_delay = kwargs.pop('retry_delay',
@@ -182,12 +183,20 @@ def bind_api(**config):
 
                 # Execute request
                 try:
-                    resp = self.session.request(self.method,
-                                                full_url,
-                                                data=self.post_data,
-                                                timeout=self.api.timeout,
-                                                auth=auth,
-                                                proxies=self.api.proxy)
+                    if self.post_json:
+                        resp = self.session.request(self.method,
+                                                    full_url,
+                                                    json=self.post_data,
+                                                    timeout=self.api.timeout,
+                                                    auth=auth,
+                                                    proxies=self.api.proxy)
+                    else:
+                        resp = self.session.request(self.method,
+                                                    full_url,
+                                                    data=self.post_data,
+                                                    timeout=self.api.timeout,
+                                                    auth=auth,
+                                                    proxies=self.api.proxy)
                 except Exception as e:
                     six.reraise(TweepError, TweepError('Failed to send request: %s' % e), sys.exc_info()[2])
 
@@ -232,6 +241,14 @@ def bind_api(**config):
                     raise RateLimitError(error_msg, resp)
                 else:
                     raise TweepError(error_msg, resp, api_code=api_error_code)
+            elif resp.status_code and resp.status_code == 204:
+                # Creates a dummy Response object when a 204 status code is
+                # return from Twitter. 204 codes are a empty response
+                from requests.models import Response
+                resp = Response()
+                setattr(resp,'status_code',204)
+                setattr(resp,'encoding','utf-8')
+                setattr(resp,'_content',b'{"Response 204": "No Response Content"}')
 
             # Parse the response payload
             result = self.parser.parse(self, resp.text)
