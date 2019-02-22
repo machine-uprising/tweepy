@@ -26,7 +26,7 @@ log = logging.getLogger('tweepy.binder')
 def bind_api(**config):
 
     class APIMethod(object):
-        
+
         api = config['api']
         path = config['path']
         payload_type = config.get('payload_type', None)
@@ -38,6 +38,7 @@ def bind_api(**config):
         upload_api = config.get('upload_api', False)
         use_cache = config.get('use_cache', True)
         session = requests.Session()
+        dmcursor = config.get('dmcursor',False)
 
         def __init__(self, args, kwargs):
             api = self.api
@@ -260,7 +261,10 @@ def bind_api(**config):
             return result
 
     def _call(*args, **kwargs):
+        dmcursor = kwargs.get('dmcursor',None)
         method = APIMethod(args, kwargs)
+        if dmcursor:
+            method.session.headers['tweepy_dmcursor'] = dmcursor
         if kwargs.get('create'):
             return method
         else:
@@ -274,5 +278,11 @@ def bind_api(**config):
             _call.pagination_mode = 'id'
     elif 'page' in APIMethod.allowed_param:
         _call.pagination_mode = 'page'
+
+    if APIMethod.dmcursor \
+        and 'cursor' in APIMethod.allowed_param:
+        _call.dmcursor = True
+    else:
+        _call.dmcursor = False
 
     return _call

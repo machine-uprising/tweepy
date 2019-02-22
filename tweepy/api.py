@@ -14,6 +14,7 @@ from tweepy.error import TweepError
 from tweepy.parsers import ModelParser, Parser
 from tweepy.utils import list_to_csv
 from tweepy import dmutils
+
 from tweepy.mediaasync import media_async_api
 
 
@@ -442,9 +443,10 @@ class API(object):
         return bind_api(
             api=self,
             path='/direct_messages/events/list.json',
-            payload_type='direct_message', payload_list=False,
+            payload_type='direct_message', payload_list=True,
             allowed_param=['count','cursor'],
-            require_auth=True
+            require_auth=True,
+            dmcursor=True
         )
 
     @property
@@ -454,7 +456,7 @@ class API(object):
         """
         return bind_api(
             api=self,
-            path='/direct_messages/show/{id}.json',
+            path='/direct_messages/events/show.json',
             payload_type='direct_message',
             allowed_param=['id'],
             require_auth=True
