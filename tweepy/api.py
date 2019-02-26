@@ -484,11 +484,7 @@ class API(object):
             'text':message_text
         }
 
-        if 'quick_reply' in kwargs:
-            quick_reply = kwargs.get('quick_reply')
-        else:
-            quick_reply = None
-
+        quick_reply = kwargs.get('quick_reply',None)
         if quick_reply is not None:
             if not isinstance(quick_reply,dict):
                 raise TweepError('Quick reply must be a dict() object')
@@ -501,11 +497,7 @@ class API(object):
 
             message_data_object['quick_reply'] = quick_reply
 
-        if 'ctas' in kwargs:
-            cta_buttons = kwargs.get('ctas')
-        else:
-            cta_buttons = None
-
+        cta_buttons = kwargs.get('ctas',None)
         if cta_buttons is not None:
             if not isinstance(cta_buttons,list):
                 raise TweepError('CTA Buttons must be a list object')
@@ -518,13 +510,13 @@ class API(object):
 
             message_data_object['ctas'] = cta_buttons
 
-        if 'media_upload' in kwargs:
-            media_attachment = kwargs.get('media_upload')
-            if 'media_filename' not in media_attachment.keys():
+        media_upload = kwargs.get('media_upload',None)
+        if media_upload is not None:
+            if 'media_filename' not in media_upload.keys():
                 raise TweepError(
                     'Media filename not provided for media attachment')
 
-            upload_media_info = self.media_upload_async(**media_attachment)
+            upload_media_info = self.media_upload_async(**media_upload)
             if isinstance(upload_media_info,dict):
                 if 'media_id' in upload_media_info.keys():
                     media_attachment_file = {
@@ -545,17 +537,16 @@ class API(object):
             else:
                 raise TweepError('Error occured in media upload. Exiting')
 
-
-        if 'attachment' in kwargs:
-            media_attachment = kwargs.get('attachment')
+        media_attachment = kwargs.get('attachment',None)
+        if media_attachment is not None:
             if 'type' not in media_attachment.keys():
                 raise TweepError(
                     'type not provided for media attachment')
 
             message_data_object["attachment"] = media_attachment
 
-
-
+        # send_direct_message requires application/json content type and passes
+        # a dictionary object containing the message content
         headers = {'Content-Type':'application/json'}
         post_data = {
             'event': {
@@ -568,8 +559,7 @@ class API(object):
                 }
             }
         }
-        api_kwargs = dict()
-        api_kwargs.update({'post_json':True})
+        api_kwargs = {'post_json':True}
         return bind_api(
             api=self,
             path='/direct_messages/events/new.json',
