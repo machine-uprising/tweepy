@@ -204,12 +204,31 @@ class User(Model):
 
 class DirectMessage(Model):
 
+    source_apps = None
+
     @classmethod
     def parse(cls, api, json):
         dm = cls(api)
+
+        if sorted(list(json.keys())) == ['event']:
+            json = json['event']
+        elif sorted(list(json.keys())) == ['apps','event']:
+            DirectMessage.source_apps = json['apps']
+            json = json['event']
+
         setattr(dm, '_json', json)
         for k, v in json.items():
             setattr(dm, k, v)
+
+        try:
+            if 'source_app_id' in json['message_create']:
+                source_app = cls.parse_source_app(
+                                json['message_create']['source_app_id'])
+                if source_app is not None:
+                    setattr(dm,'source_app',source_app)
+                    dm._json['message_create']['source_app'] = source_app
+        except:
+            pass
 
         return dm
 
@@ -220,11 +239,21 @@ class DirectMessage(Model):
         else:
             item_list = json_list['events']
 
+        if 'apps' in json_list:
+            DirectMessage.source_apps = json_list['apps']
+
         results = ResultSet()
         for obj in item_list:
             results.append(cls.parse(api, obj))
 
         return results
+
+    @classmethod
+    def parse_source_app(cls,source_app_id):
+        if source_app_id in DirectMessage.source_apps.keys():
+            return DirectMessage.source_apps[source_app_id]
+        else:
+            return None
 
 
     def destroy(self):
