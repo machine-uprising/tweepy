@@ -13,7 +13,6 @@ from tweepy.binder import bind_api
 from tweepy.error import TweepError
 from tweepy.parsers import ModelParser, Parser
 from tweepy.utils import list_to_csv
-from tweepy import dmutils
 
 from tweepy.mediaasync import media_async_api
 
@@ -486,28 +485,10 @@ class API(object):
 
         quick_reply = kwargs.get('quick_reply',None)
         if quick_reply is not None:
-            if not isinstance(quick_reply,dict):
-                raise TweepError('Quick reply must be a dict() object')
-            elif isinstance(quick_reply,dict) and len(quick_reply) == 0:
-                raise TweepError('Quick reply object is empty')
-
-            quick_reply_validate = dmutils.dm_quick_reply(quick_reply)
-            if quick_reply_validate is not None:
-                raise TweepError(quick_reply_validate)
-
             message_data_object['quick_reply'] = quick_reply
 
         cta_buttons = kwargs.get('ctas',None)
         if cta_buttons is not None:
-            if not isinstance(cta_buttons,list):
-                raise TweepError('CTA Buttons must be a list object')
-            elif isinstance(cta_buttons,list) and len(cta_buttons) == 0:
-                raise TweepError('CTA Buttons list is empty')
-
-            cta_buttons_validate = dmutils.dm_cta_buttons(cta_buttons)
-            if cta_buttons_validate is not None:
-                raise TweepError(cta_buttons_validate)
-
             message_data_object['ctas'] = cta_buttons
 
         media_upload = kwargs.get('media_upload',None)
@@ -516,24 +497,24 @@ class API(object):
                 raise TweepError(
                     'Media filename not provided for media attachment')
 
-            upload_media_info = self.media_upload_async(**media_upload)
-            if isinstance(upload_media_info,dict):
-                if 'media_id' in upload_media_info.keys():
+            media_info = self.media_upload_async(**media_upload)
+            if isinstance(media_info,dict):
+                if 'media_id' in media_info.keys():
                     media_attachment_file = {
-                        'id':upload_media_info['media_id']
+                        'id':media_info['media_id']
                     }
-                    if 'media_category' in upload_media_info.keys():
+                    if 'media_category' in media_info.keys():
                         media_attachment_file.update(
-                            {'media_category':upload_media_info['media_category']})
+                            {'media_category':media_info['media_category']})
                     media_attachment = {
                         'type':'media',
                         'media':media_attachment_file
                     }
                     kwargs.update({'attachment':media_attachment})
                 else:
-                    upload_media_info = str(upload_media_info)
+                    upload_media_info = str(media_info)
                     raise TweepError(
-                        'Could not get media_id for upload media : %s' % upload_media_info)
+                        'Could not get media_id for upload media : %s' % media_info)
             else:
                 raise TweepError('Error occured in media upload. Exiting')
 
