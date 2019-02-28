@@ -66,6 +66,9 @@ class JSONParser(Parser):
                and 'previous_cursor' not in json:
             cursors = None, json['next_cursor']
             return json, cursors
+        elif needs_cursors and isinstance(json,dict):
+            cursors = None, 0
+            return json, cursors
         else:
             return json
 

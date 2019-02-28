@@ -15,7 +15,7 @@ class Cursor(object):
         if hasattr(method, 'pagination_mode'):
             if method.pagination_mode == 'cursor':
                 if method.dmcursor:
-                    self.iterator = DmCursorIterator(method,args,kargs)
+                    self.iterator = DmCursorIterator(method, args, kargs)
                 else:
                     self.iterator = CursorIterator(method, args, kargs)
             elif method.pagination_mode == 'id':
