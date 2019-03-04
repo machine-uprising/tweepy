@@ -32,7 +32,9 @@ def bind_api(**config):
         payload_type = config.get('payload_type', None)
         payload_list = config.get('payload_list', False)
         allowed_param = config.get('allowed_param', [])
+        json_param = config.get('json_param',[])
         method = config.get('method', 'GET')
+        post_json = config.get('post_json',False)
         require_auth = config.get('require_auth', False)
         search_api = config.get('search_api', False)
         upload_api = config.get('upload_api', False)
@@ -48,7 +50,7 @@ def bind_api(**config):
                 raise TweepError('Authentication required!')
 
             self.post_data = kwargs.pop('post_data', None)
-            self.post_json = kwargs.pop('post_json',False)
+            #self.post_json = kwargs.pop('post_json',False)
             self.retry_count = kwargs.pop('retry_count',
                                           api.retry_count)
             self.retry_delay = kwargs.pop('retry_delay',
@@ -62,6 +64,7 @@ def bind_api(**config):
             self.parser = kwargs.pop('parser', api.parser)
             self.session.headers = kwargs.pop('headers', {})
             self.build_parameters(args, kwargs)
+            self.build_json_data(args,kwargs)
 
             # Pick correct URL root to use
             if self.search_api:
@@ -103,12 +106,47 @@ def bind_api(**config):
             for k, arg in kwargs.items():
                 if arg is None:
                     continue
+                if k in self.json_param:
+                    continue
+
                 if k in self.session.params:
                     raise TweepError('Multiple values for parameter %s supplied!' % k)
 
                 self.session.params[k] = convert_to_utf8_str(arg)
 
             log.debug("PARAMS: %r", self.session.params)
+
+        def build_json_data(self, args, kwargs):
+            """ Converts json_param values sent in the API request into
+            self.post_data key,value pairs for args and kwargs
+            """
+            if not self.post_json:
+                return
+
+            self.post_data = {}
+
+            #self.session.params = {}
+            #print(args)
+            #for idx, arg in enumerate(args):
+            #    if arg is None:
+            #        continue
+            #    try:
+            #        self.post_data[self.json_param[idx]] = convert_to_utf8_str(arg)
+            #    except IndexError:
+            #        raise SpotiFyPyError('Too many parameters supplied!')
+
+            for k, arg in kwargs.items():
+                if arg is None:
+                    continue
+                if k not in self.json_param:
+                    continue
+
+                if k in self.post_data:
+                    raise SpotiFyPyError('Multiple values for parameter %s supplied!' % k)
+
+                self.post_data[k] = arg #convert_to_utf8_str(arg)
+
+            log.debug("JSON_PARAMS: %r", self.post_data)
 
         def build_path(self):
             for variable in re_path_template.findall(self.path):
@@ -185,6 +223,7 @@ def bind_api(**config):
                 # Execute request
                 try:
                     if self.post_json:
+                        self.session.headers['Content-Type'] = 'application/json'
                         resp = self.session.request(self.method,
                                                     full_url,
                                                     json=self.post_data,

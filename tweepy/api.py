@@ -461,23 +461,30 @@ class API(object):
             require_auth=True
         )
 
-    def send_direct_message(self, user_id, text, **kwargs):
+
+    def send_direct_message(self, **kwargs):
         """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-event
-            :allowed_param: no parameters are allowed on this endpoint
+            :allowed_param:no parameters are allowed on this endpoint
         """
+        message_text = kwargs.pop('text',None)
+        user_id = kwargs.pop('user_id',None)
+
+        if user_id is None or message_text is None:
+            raise TweepError('Requires user_id and text to send a message')
+
         message_data_object = {
-            'text':text
+            'text':message_text
         }
 
-        quick_reply = kwargs.get('quick_reply',None)
+        quick_reply = kwargs.pop('quick_reply',None)
         if quick_reply is not None:
             message_data_object['quick_reply'] = quick_reply
 
-        cta_buttons = kwargs.get('ctas',None)
+        cta_buttons = kwargs.pop('ctas',None)
         if cta_buttons is not None:
             message_data_object['ctas'] = cta_buttons
 
-        media_upload = kwargs.get('media_upload',None)
+        media_upload = kwargs.pop('media_upload',None)
         if media_upload is not None:
             if 'media_filename' not in media_upload.keys():
                 raise TweepError(
@@ -504,7 +511,7 @@ class API(object):
             else:
                 raise TweepError('Error occured in media upload. Exiting')
 
-        media_attachment = kwargs.get('attachment',None)
+        media_attachment = kwargs.pop('attachment',None)
         if media_attachment is not None:
             if 'type' not in media_attachment.keys():
                 raise TweepError(
@@ -512,29 +519,29 @@ class API(object):
 
             message_data_object["attachment"] = media_attachment
 
-        # send_direct_message requires application/json content type and passes
-        # a dictionary object containing the message content
-        headers = {'Content-Type':'application/json'}
-        post_data = {
-            'event': {
-                'type':'message_create',
-                'message_create': {
-                    'target': {
-                        'recipient_id':user_id
-                    },
-                    'message_data': message_data_object
-                }
+        event = {
+            'type':'message_create',
+            'message_create': {
+                'target': {
+                    'recipient_id':user_id
+                },
+                'message_data': message_data_object
             }
         }
-        api_kwargs = {'post_json':True}
+
+        dmkwargs = {}
+        dmkwargs.update({'event':event})
+
         return bind_api(
             api=self,
             path='/direct_messages/events/new.json',
             method='POST',
+            post_json=True,
             payload_type='direct_message',
             allowed_param=[],
+            json_param=['event'],
             require_auth=True
-        )(post_data=post_data, headers=headers,**api_kwargs)
+        )(**dmkwargs)
 
     @property
     def destroy_direct_message(self):
@@ -580,23 +587,28 @@ class API(object):
             require_auth=True
         )
 
-    def new_welcome_message(self, name, text, **kwargs):
+    def new_welcome_message(self, **kwargs):
         """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-event
             :allowed_param: no parameters are allowed on this endpoint
         """
+        message_text  = kwargs.pop('text',None)
+
+        if message_text is None:
+            raise TweepError('text kwarg is required to create a welcome message')
+
         message_data_object = {
-            'text':text
+            'text':message_text
         }
 
-        quick_reply = kwargs.get('quick_reply',None)
+        quick_reply = kwargs.pop('quick_reply',None)
         if quick_reply is not None:
             message_data_object['quick_reply'] = quick_reply
 
-        cta_buttons = kwargs.get('ctas',None)
+        cta_buttons = kwargs.pop('ctas',None)
         if cta_buttons is not None:
             message_data_object['ctas'] = cta_buttons
 
-        media_upload = kwargs.get('media_upload',None)
+        media_upload = kwargs.pop('media_upload',None)
         if media_upload is not None:
             if 'media_filename' not in media_upload.keys():
                 raise TweepError(
@@ -623,7 +635,7 @@ class API(object):
             else:
                 raise TweepError('Error occured in media upload. Exiting')
 
-        media_attachment = kwargs.get('attachment',None)
+        media_attachment = kwargs.pop('attachment',None)
         if media_attachment is not None:
             if 'type' not in media_attachment.keys():
                 raise TweepError(
@@ -632,27 +644,27 @@ class API(object):
             message_data_object["attachment"] = media_attachment
 
 
-        post_data = {
-            'welcome_message': {
-                    'message_data': message_data_object
-            }
+        welcome_message = {
+            'message_data': message_data_object
         }
-        if name is not None:
-            post_data['welcome_message'].update({'name':name})
 
-        # send_direct_message requires application/json content type and passes
-        # a dictionary object containing the message content
-        headers = {'Content-Type':'application/json'}
-        api_kwargs = {'post_json':True}
+        welcome_message_name = kwargs.pop('name',None)
+        if welcome_message_name is not None:
+            welcome_message.update({'name':welcome_message_name})
+
+        wmkwargs = {}
+        wmkwargs.update({'welcome_message':welcome_message})
 
         return bind_api(
             api=self,
             path='/direct_messages/welcome_messages/new.json',
             method='POST',
             payload_type='welcome_message',
+            post_json=True,
             allowed_param=[],
+            json_param=['welcome_message'],
             require_auth=True
-        )(post_data=post_data, headers=headers,**api_kwargs)
+        )(**wmkwargs)
 
 
     def update_welcome_message(self, id, name, text, **kwargs):
