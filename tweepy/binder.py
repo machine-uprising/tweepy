@@ -300,7 +300,7 @@ def bind_api(**config):
             return result
 
     def _call(*args, **kwargs):
-        dmcursor = kwargs.get('dmcursor',None)
+        dmcursor = kwargs.pop('dmcursor',None)
         method = APIMethod(args, kwargs)
         if dmcursor:
             method.session.headers['tweepy_dmcursor'] = dmcursor
