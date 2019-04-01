@@ -128,7 +128,7 @@ class StreamListener(object):
         """Called when twitter sends a disconnect notice
 
         Disconnect codes are listed here:
-        https://dev.twitter.com/docs/streaming-apis/messages#Disconnect_messages_disconnect
+        https://developer.twitter.com/en/docs/tweets/filter-realtime/guides/streaming-message-types
         """
         return
 
@@ -193,10 +193,11 @@ class Stream(object):
         self.auth = auth
         self.listener = listener
         self.running = False
+        self.daemon = options.get("daemon", False)
         self.timeout = options.get("timeout", 300.0)
         self.retry_count = options.get("retry_count")
         # values according to
-        # https://dev.twitter.com/docs/streaming-apis/connecting#Reconnecting
+        # https://developer.twitter.com/en/docs/tweets/filter-realtime/guides/connecting#reconnecting
         self.retry_time_start = options.get("retry_time", 5.0)
         self.retry_420_start = options.get("retry_420", 60.0)
         self.retry_time_cap = options.get("retry_time_cap", 320.0)
@@ -363,6 +364,7 @@ class Stream(object):
         self.running = True
         if is_async:
             self._thread = Thread(target=self._run)
+            self._thread.daemon = self.daemon
             self._thread.start()
         else:
             self._run()
