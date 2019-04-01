@@ -14,6 +14,8 @@ from tweepy.error import TweepError
 from tweepy.parsers import ModelParser, Parser
 from tweepy.utils import list_to_csv
 
+from tweepy.mediaasync import media_async_api
+
 
 class API(object):
     """Twitter API"""
@@ -212,6 +214,31 @@ class API(object):
             upload_api=True
         )(*args, **kwargs)
 
+
+    def media_upload_async(self,**kwargs):
+        """ Initializes async media upload
+        :reference: https://developer.twitter.com/en/docs/media/upload-media/overview
+
+        Minimum required kwarg is media_filename although this normally not
+        enough to complete an async upload.
+        Other kwargs include;
+            [media_category,shared_media,additional_owners]
+        """
+        if kwargs is None or len(kwargs) == 0:
+            raise TweepError('media_upload_async has not kwargs')
+
+        if 'media_filename' not in kwargs.keys():
+            raise TweepError('media_filename must be provided as kwarg')
+
+        return media_async_api(
+            api=self,
+            path='/media/upload.json',
+            method='POST',
+            payload_type='media_upload_async',
+            allowed_param=[],
+            require_auth=True
+        )(**kwargs)
+
     def update_with_media(self, filename, *args, **kwargs):
         """ :reference: https://developer.twitter.com/en/docs/tweets/post-and-engage/api-reference/post-statuses-update_with_media
             :allowed_param:'status', 'possibly_sensitive', 'in_reply_to_status_id', 'in_reply_to_status_id_str', 'auto_populate_reply_metadata', 'lat', 'long', 'place_id', 'display_coordinates'
@@ -409,70 +436,399 @@ class API(object):
 
     @property
     def direct_messages(self):
-        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/get-messages
-            :allowed_param:'since_id', 'max_id', 'count', 'full_text'
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/list-events
+            :allowed_param:'count', 'cursor'
         """
         return bind_api(
             api=self,
-            path='/direct_messages.json',
+            path='/direct_messages/events/list.json',
             payload_type='direct_message', payload_list=True,
-            allowed_param=['since_id', 'max_id', 'count', 'full_text'],
-            require_auth=True
+            allowed_param=['count','cursor'],
+            require_auth=True,
+            dmcursor=True
         )
 
     @property
     def get_direct_message(self):
-        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/get-message
-            :allowed_param:'id', 'full_text'
-        """
-        return bind_api(
-            api=self,
-            path='/direct_messages/show/{id}.json',
-            payload_type='direct_message',
-            allowed_param=['id', 'full_text'],
-            require_auth=True
-        )
-
-    @property
-    def sent_direct_messages(self):
-        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/get-sent-message
-            :allowed_param:'since_id', 'max_id', 'count', 'page', 'full_text'
-        """
-        return bind_api(
-            api=self,
-            path='/direct_messages/sent.json',
-            payload_type='direct_message', payload_list=True,
-            allowed_param=['since_id', 'max_id', 'count', 'page', 'full_text'],
-            require_auth=True
-        )
-
-    @property
-    def send_direct_message(self):
-        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-message
-            :allowed_param:'user', 'screen_name', 'user_id', 'text'
-        """
-        return bind_api(
-            api=self,
-            path='/direct_messages/new.json',
-            method='POST',
-            payload_type='direct_message',
-            allowed_param=['user', 'screen_name', 'user_id', 'text'],
-            require_auth=True
-        )
-
-    @property
-    def destroy_direct_message(self):
-        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/delete-message
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/list-events
             :allowed_param:'id'
         """
         return bind_api(
             api=self,
-            path='/direct_messages/destroy.json',
-            method='POST',
+            path='/direct_messages/events/show.json',
             payload_type='direct_message',
             allowed_param=['id'],
             require_auth=True
         )
+
+
+    def send_direct_message(self, **kwargs):
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-event
+            :allowed_param:no parameters are allowed on this endpoint
+        """
+        message_text = kwargs.pop('text',None)
+        user_id = kwargs.pop('user_id',None)
+
+        if user_id is None or message_text is None:
+            raise TweepError('Requires user_id and text to send a message')
+
+        message_data_object = {
+            'text':message_text
+        }
+
+        quick_reply = kwargs.pop('quick_reply',None)
+        if quick_reply is not None:
+            message_data_object['quick_reply'] = quick_reply
+
+        cta_buttons = kwargs.pop('ctas',None)
+        if cta_buttons is not None:
+            message_data_object['ctas'] = cta_buttons
+
+        media_upload = kwargs.pop('media_upload',None)
+        if media_upload is not None:
+            if 'media_filename' not in media_upload.keys():
+                raise TweepError(
+                    'Media filename not provided for media attachment')
+
+            media_info = self.media_upload_async(**media_upload)
+            if isinstance(media_info,dict):
+                if 'media_id' in media_info.keys():
+                    media_attachment_file = {
+                        'id':media_info['media_id']
+                    }
+                    if 'media_category' in media_info.keys():
+                        media_attachment_file.update(
+                            {'media_category':media_info['media_category']})
+                    media_attachment = {
+                        'type':'media',
+                        'media':media_attachment_file
+                    }
+                    kwargs.update({'attachment':media_attachment})
+                else:
+                    upload_media_info = str(media_info)
+                    raise TweepError(
+                        'Could not get media_id for upload media : %s' % media_info)
+            else:
+                raise TweepError('Error occured in media upload. Exiting')
+
+        media_attachment = kwargs.pop('attachment',None)
+        if media_attachment is not None:
+            if 'type' not in media_attachment.keys():
+                raise TweepError(
+                    'type not provided for media attachment')
+
+            message_data_object["attachment"] = media_attachment
+
+        event = {
+            'type':'message_create',
+            'message_create': {
+                'target': {
+                    'recipient_id':user_id
+                },
+                'message_data': message_data_object
+            }
+        }
+
+        dmkwargs = {}
+        dmkwargs.update({'event':event})
+
+        return bind_api(
+            api=self,
+            path='/direct_messages/events/new.json',
+            method='POST',
+            post_json=True,
+            payload_type='direct_message',
+            allowed_param=[],
+            json_param=['event'],
+            require_auth=True
+        )(**dmkwargs)
+
+    @property
+    def destroy_direct_message(self):
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/delete-message-event
+            :allowed_param:'id'
+            :returns: HTTP Response Code 204
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/events/destroy.json',
+            method='DELETE',
+            payload_type='direct_message',
+            allowed_param=['id'],
+            require_auth=True
+        )
+
+
+
+    @property
+    def welcome_messages(self):
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/list-welcome-messages
+            :allowed_param:'count', 'cursor'
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/list.json',
+            payload_type='welcome_message', payload_list=True,
+            allowed_param=['count','cursor'],
+            require_auth=True,
+            dmcursor=True
+        )
+
+    @property
+    def get_welcome_message(self):
+        """ :reference:https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/get-welcome-message
+            :allowed_param:'id'
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/show.json',
+            payload_type='welcome_message',
+            allowed_param=['id'],
+            require_auth=True
+        )
+
+    def new_welcome_message(self, **kwargs):
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-event
+            :allowed_param: no parameters are allowed on this endpoint
+        """
+        message_text  = kwargs.pop('text',None)
+
+        if message_text is None:
+            raise TweepError('text kwarg is required to create a welcome message')
+
+        message_data_object = {
+            'text':message_text
+        }
+
+        quick_reply = kwargs.pop('quick_reply',None)
+        if quick_reply is not None:
+            message_data_object['quick_reply'] = quick_reply
+
+        cta_buttons = kwargs.pop('ctas',None)
+        if cta_buttons is not None:
+            message_data_object['ctas'] = cta_buttons
+
+        media_upload = kwargs.pop('media_upload',None)
+        if media_upload is not None:
+            if 'media_filename' not in media_upload.keys():
+                raise TweepError(
+                    'Media filename not provided for media attachment')
+
+            media_info = self.media_upload_async(**media_upload)
+            if isinstance(media_info,dict):
+                if 'media_id' in media_info.keys():
+                    media_attachment_file = {
+                        'id':media_info['media_id']
+                    }
+                    if 'media_category' in media_info.keys():
+                        media_attachment_file.update(
+                            {'media_category':media_info['media_category']})
+                    media_attachment = {
+                        'type':'media',
+                        'media':media_attachment_file
+                    }
+                    kwargs.update({'attachment':media_attachment})
+                else:
+                    upload_media_info = str(media_info)
+                    raise TweepError(
+                        'Could not get media_id for upload media : %s' % media_info)
+            else:
+                raise TweepError('Error occured in media upload. Exiting')
+
+        media_attachment = kwargs.pop('attachment',None)
+        if media_attachment is not None:
+            if 'type' not in media_attachment.keys():
+                raise TweepError(
+                    'type not provided for media attachment')
+
+            message_data_object["attachment"] = media_attachment
+
+
+        welcome_message = {
+            'message_data': message_data_object
+        }
+
+        welcome_message_name = kwargs.pop('name',None)
+        if welcome_message_name is not None:
+            welcome_message.update({'name':welcome_message_name})
+
+        wmkwargs = {}
+        wmkwargs.update({'welcome_message':welcome_message})
+
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/new.json',
+            method='POST',
+            payload_type='welcome_message',
+            post_json=True,
+            allowed_param=[],
+            json_param=['welcome_message'],
+            require_auth=True
+        )(**wmkwargs)
+
+
+    def update_welcome_message(self, id, name, text, **kwargs):
+        """ :https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/update-welcome-message
+            :allowed_param: ['id']
+        """
+        message_data_object = {
+            'text':text
+        }
+
+        quick_reply = kwargs.get('quick_reply',None)
+        if quick_reply is not None:
+            message_data_object['quick_reply'] = quick_reply
+
+        cta_buttons = kwargs.get('ctas',None)
+        if cta_buttons is not None:
+            message_data_object['ctas'] = cta_buttons
+
+        media_upload = kwargs.get('media_upload',None)
+        if media_upload is not None:
+            if 'media_filename' not in media_upload.keys():
+                raise TweepError(
+                    'Media filename not provided for media attachment')
+
+            media_info = self.media_upload_async(**media_upload)
+            if isinstance(media_info,dict):
+                if 'media_id' in media_info.keys():
+                    media_attachment_file = {
+                        'id':media_info['media_id']
+                    }
+                    if 'media_category' in media_info.keys():
+                        media_attachment_file.update(
+                            {'media_category':media_info['media_category']})
+                    media_attachment = {
+                        'type':'media',
+                        'media':media_attachment_file
+                    }
+                    kwargs.update({'attachment':media_attachment})
+                else:
+                    upload_media_info = str(media_info)
+                    raise TweepError(
+                        'Could not get media_id for upload media : %s' % media_info)
+            else:
+                raise TweepError('Error occured in media upload. Exiting')
+
+        media_attachment = kwargs.get('attachment',None)
+        if media_attachment is not None:
+            if 'type' not in media_attachment.keys():
+                raise TweepError(
+                    'type not provided for media attachment')
+
+            message_data_object["attachment"] = media_attachment
+
+
+        post_data = {
+            'welcome_message': {
+                'message_data': {
+                    'message_data': message_data_object
+                }
+            }
+        }
+        if name is not None:
+            post_data.update({'name':name})
+
+        # send_direct_message requires application/json content type and passes
+        # a dictionary object containing the message content
+        headers = {'Content-Type':'application/json'}
+        api_kwargs = {'post_json':True}
+
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/new.json',
+            method='PUT',
+            payload_type='welcome_message',
+            allowed_param=['id'],
+            require_auth=True
+        )(post_data=post_data, headers=headers,**api_kwargs)
+
+    @property
+    def destroy_welcome_message(self):
+        """ :reference:https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/delete-welcome-message
+            :allowed_param:'id'
+            :returns: HTTP Response Code 204
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/destroy.json',
+            method='DELETE',
+            payload_type='welcome_message',
+            allowed_param=['id'],
+            require_auth=True
+        )
+
+
+
+    @property
+    def welcome_message_rules(self):
+        """ :reference:
+            :allowed_param:'count', 'cursor'
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/rules/list.json',
+            payload_type='welcome_message_rule', payload_list=True,
+            allowed_param=['count','cursor'],
+            require_auth=True,
+            dmcursor=True
+        )
+
+    @property
+    def get_welcome_message_rule(self):
+        """ :reference:https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/get-welcome-message-rule
+            :allowed_param:'id'
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/rules/show.json',
+            payload_type='welcome_message_rule',
+            allowed_param=['id'],
+            require_auth=True
+        )
+
+    def new_welcome_message_rule(self, welcome_message_id, **kwargs):
+        """ :reference:https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/new-welcome-message-rule
+            :allowed_param: no parameters are allowed on this endpoint
+        """
+
+        post_data = {
+            'welcome_message_rule': {
+                'welcome_message_id': welcome_message_id
+            }
+        }
+
+        # send_direct_message requires application/json content type and passes
+        # a dictionary object containing the message content
+        headers = {'Content-Type':'application/json'}
+        api_kwargs = {'post_json':True}
+
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/rules/new.json',
+            method='POST',
+            payload_type='welcome_message_rule',
+            allowed_param=[],
+            require_auth=True
+        )(post_data=post_data, headers=headers,**api_kwargs)
+
+    @property
+    def destroy_welcome_message_rule(self):
+        """ :reference:https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/delete-welcome-message-rule
+            :allowed_param:'id'
+            :returns: HTTP Response Code 204
+        """
+        return bind_api(
+            api=self,
+            path='/direct_messages/welcome_messages/rules/destroy.json',
+            method='DELETE',
+            payload_type='welcome_message_rule',
+            allowed_param=['id'],
+            require_auth=True
+        )
+
+
+
 
     @property
     def create_friendship(self):

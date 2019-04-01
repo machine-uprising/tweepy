@@ -204,20 +204,160 @@ class User(Model):
 
 class DirectMessage(Model):
 
+    source_apps = None
+
     @classmethod
     def parse(cls, api, json):
         dm = cls(api)
+
+        if sorted(list(json.keys())) == ['event']:
+            json = json['event']
+        elif sorted(list(json.keys())) == ['apps','event']:
+            DirectMessage.source_apps = json['apps']
+            json = json['event']
+
+        setattr(dm, '_json', json)
         for k, v in json.items():
-            if k == 'sender' or k == 'recipient':
-                setattr(dm, k, User.parse(api, v))
-            elif k == 'created_at':
-                setattr(dm, k, parse_datetime(v))
-            else:
-                setattr(dm, k, v)
+            setattr(dm, k, v)
+
+        try:
+            if 'source_app_id' in json['message_create']:
+                source_app = cls.parse_source_app(
+                                json['message_create']['source_app_id'])
+                if source_app is not None:
+                    setattr(dm,'source_app',source_app)
+                    dm._json['message_create']['source_app'] = source_app
+        except:
+            pass
+
         return dm
+
+    @classmethod
+    def parse_list(cls, api, json_list):
+        if isinstance(json_list, list):
+            item_list = json_list
+        else:
+            item_list = json_list['events']
+
+        if 'apps' in json_list:
+            DirectMessage.source_apps = json_list['apps']
+
+        results = ResultSet()
+        for obj in item_list:
+            results.append(cls.parse(api, obj))
+
+        return results
+
+    @classmethod
+    def parse_source_app(cls,source_app_id):
+        if source_app_id in DirectMessage.source_apps.keys():
+            return DirectMessage.source_apps[source_app_id]
+        else:
+            return None
+
 
     def destroy(self):
         return self._api.destroy_direct_message(self.id)
+
+
+class WelcomeMessage(Model):
+
+    @classmethod
+    def parse(cls, api, json):
+        dm = cls(api)
+
+        if sorted(list(json.keys())) == ['welcome_message']:
+            json = json['welcome_message']
+        elif sorted(list(json.keys())) == ['apps','welcome_message']:
+            WelcomeMessage.source_apps = json['apps']
+            json = json['welcome_message']
+
+        setattr(dm, '_json', json)
+        for k, v in json.items():
+            setattr(dm, k, v)
+
+        try:
+            if 'source_app_id' in json:
+                source_app = cls.parse_source_app(
+                                json['source_app_id'])
+                if source_app is not None:
+                    setattr(dm,'source_app',source_app)
+                    dm._json['source_app'] = source_app
+        except:
+            pass
+
+        return dm
+
+    @classmethod
+    def parse_list(cls, api, json_list):
+        # if no rules have been setup then an empty dictionary object is
+        # returned. Twitter might change this in future but for now a check
+        # of the response is required to dummy-fill the object
+        if isinstance(json_list,dict) and len(json_list.keys()) == 0:
+            json_list.update({'welcome_messages':[]})
+
+        if isinstance(json_list, list):
+            item_list = json_list
+        else:
+            item_list = json_list['welcome_messages']
+
+        if 'apps' in json_list:
+            DirectMessage.source_apps = json_list['apps']
+
+        results = ResultSet()
+        for obj in item_list:
+            results.append(cls.parse(api, obj))
+
+        return results
+
+    @classmethod
+    def parse_source_app(cls,source_app_id):
+        if source_app_id in WelcomeMessage.source_apps.keys():
+            return WelcomeMessage.source_apps[source_app_id]
+        else:
+            return None
+
+
+    def destroy(self):
+        return self._api.destroy_welcome_message(self.id)
+
+
+class WelcomeMessageRule(Model):
+
+    @classmethod
+    def parse(cls, api, json):
+        dm = cls(api)
+
+        if sorted(list(json.keys())) == ['welcome_message_rule']:
+            json = json['welcome_message_rule']
+
+        setattr(dm, '_json', json)
+        for k, v in json.items():
+            setattr(dm, k, v)
+
+        return dm
+
+    @classmethod
+    def parse_list(cls, api, json_list):
+        # if no rules have been setup then an empty dictionary object is
+        # returned. Twitter might change this in future but for now a check
+        # of the response is required to dummy-fill the object
+        if isinstance(json_list,dict) and len(json_list.keys()) == 0:
+            json_list.update({'welcome_message_rules':[]})
+
+        if isinstance(json_list, list):
+            item_list = json_list
+        else:
+            item_list = json_list['welcome_message_rules']
+
+        results = ResultSet()
+        for obj in item_list:
+            results.append(cls.parse(api, obj))
+
+        return results
+
+    def destroy(self):
+        return self._api.destroy_welcome_message_rule(self.id)
 
 
 class Friendship(Model):
@@ -470,6 +610,18 @@ class Media(Model):
         return media
 
 
+class MediaAsync(Model):
+
+    @classmethod
+    def parse(cls, api, json):
+        media = cls(api)
+        setattr(media, '_json', json)
+        for k, v in json.items():
+            setattr(media, k, v)
+
+        return media
+
+
 class ModelFactory(object):
     """
     Used by parsers for creating instances
@@ -480,6 +632,8 @@ class ModelFactory(object):
     status = Status
     user = User
     direct_message = DirectMessage
+    welcome_message = WelcomeMessage
+    welcome_message_rule = WelcomeMessageRule
     friendship = Friendship
     saved_search = SavedSearch
     search_results = SearchResults
@@ -488,6 +642,7 @@ class ModelFactory(object):
     relation = Relation
     relationship = Relationship
     media = Media
+    media_upload_async = MediaAsync
 
     json = JSONModel
     ids = IDModel

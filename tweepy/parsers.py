@@ -53,11 +53,21 @@ class JSONParser(Parser):
         except Exception as e:
             raise TweepError('Failed to parse JSON payload: %s' % e)
 
-        needs_cursors = 'cursor' in method.session.params
+        needs_cursors = 'cursor' in method.session.params or \
+                        'tweepy_dmcursor' in method.session.headers
+
         if needs_cursors and isinstance(json, dict) \
                 and 'previous_cursor' in json \
                 and 'next_cursor' in json:
             cursors = json['previous_cursor'], json['next_cursor']
+            return json, cursors
+        elif needs_cursors and isinstance(json, dict) \
+               and 'next_cursor' in json \
+               and 'previous_cursor' not in json:
+            cursors = None, json['next_cursor']
+            return json, cursors
+        elif needs_cursors and isinstance(json,dict):
+            cursors = None, 0
             return json, cursors
         else:
             return json

@@ -14,7 +14,10 @@ class Cursor(object):
     def __init__(self, method, *args, **kargs):
         if hasattr(method, 'pagination_mode'):
             if method.pagination_mode == 'cursor':
-                self.iterator = CursorIterator(method, args, kargs)
+                if method.dmcursor:
+                    self.iterator = DmCursorIterator(method, args, kargs)
+                else:
+                    self.iterator = CursorIterator(method, args, kargs)
             elif method.pagination_mode == 'id':
                 self.iterator = IdIterator(method, args, kargs)
             elif method.pagination_mode == 'page':
@@ -71,8 +74,43 @@ class CursorIterator(BaseIterator):
         if self.next_cursor == 0 or (self.limit and self.num_tweets == self.limit):
             raise StopIteration
         data, cursors = self.method(cursor=self.next_cursor,
-                                    *self.args,
-                                    **self.kargs)
+                                        *self.args,
+                                        **self.kargs)
+        self.prev_cursor, self.next_cursor = cursors
+        if len(data) == 0:
+            raise StopIteration
+        self.num_tweets += 1
+        return data
+
+    def prev(self):
+        if self.prev_cursor == 0:
+            raise TweepError('Can not page back more, at first page')
+        data, self.next_cursor, self.prev_cursor = self.method(cursor=self.prev_cursor,
+                                                               *self.args,
+                                                               **self.kargs)
+        self.num_tweets -= 1
+        return data
+
+
+class DmCursorIterator(BaseIterator):
+
+    def __init__(self, method, args, kargs):
+        BaseIterator.__init__(self, method, args, kargs)
+        start_cursor = kargs.pop('cursor', None)
+        self.next_cursor = start_cursor or -1
+        self.prev_cursor = start_cursor or 0
+        self.num_tweets = 0
+
+    def next(self):
+        if self.next_cursor == 0 or (self.limit and self.num_tweets == self.limit):
+            raise StopIteration
+        if self.next_cursor == -1:
+            self.kargs.update({'dmcursor':'active'})
+            data, cursors = self.method(*self.args,**self.kargs)
+        else:
+            data, cursors = self.method(cursor=self.next_cursor,
+                                        *self.args,
+                                        **self.kargs)
         self.prev_cursor, self.next_cursor = cursors
         if len(data) == 0:
             raise StopIteration
