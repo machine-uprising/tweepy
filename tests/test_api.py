@@ -9,7 +9,7 @@ from nose import SkipTest
 
 from tweepy import Friendship, MemoryCache, FileCache, API
 from tweepy.parsers import Parser
-from .config import TweepyTestCase, username, use_replay, tape
+from .config import TweepyTestCase, username, userid, use_replay, tape
 
 test_tweet_id = '266367358078169089'
 tweet_text = 'testing 1000'
