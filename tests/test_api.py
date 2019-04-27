@@ -158,24 +158,32 @@ class TweepyAPITests(TweepyTestCase):
     def testdirectmessages(self):
         self.api.direct_messages()
 
-    @tape.use_cassette('testsentdirectmessages.json')
-    def testsentdirectmessages(self):
-        self.api.sent_direct_messages()
+    #@tape.use_cassette('testsentdirectmessages.json')
+    #def testsentdirectmessages(self):
+    #    self.api.sent_direct_messages()
 
-    @tape.use_cassette('testsendanddestroydirectmessage.json')
-    def testsendanddestroydirectmessage(self):
+    @tape.use_cassette('testsendgetanddestroydirectmessage.json')
+    def testsendgetanddestroydirectmessage(self):
         # send
-        sent_dm = self.api.send_direct_message(username, text='test message')
-        self.assertEqual(sent_dm.text, 'test message')
-        self.assertEqual(sent_dm.sender.screen_name, username)
-        self.assertEqual(sent_dm.recipient.screen_name, username)
+        sent_dm = self.api.send_direct_message(user_id=userid,text='test message')
+        self.assertEqual(sent_dm.message_create["message_data"]["text"], 'test message')
+        self.assertEqual(sent_dm.message_create["sender_id"], userid)
+        self.assertEqual(sent_dm.message_create["target"]["recipient_id"], userid)
+
+        # get
+        get_dm = self.api.get_direct_message(sent_dm.id)
+        self.assertEqual(get_dm.message_create["message_data"]["text"], sent_dm.message_create["message_data"]["text"])
+        self.assertEqual(get_dm.id, sent_dm.id)
+        self.assertEqual(get_dm.message_create["sender_id"], userid)
+        self.assertEqual(get_dm.message_create["target"]["recipient_id"], userid)
 
         # destroy
         destroyed_dm = self.api.destroy_direct_message(sent_dm.id)
-        self.assertEqual(destroyed_dm.text, sent_dm.text)
-        self.assertEqual(destroyed_dm.id, sent_dm.id)
-        self.assertEqual(destroyed_dm.sender.screen_name, username)
-        self.assertEqual(destroyed_dm.recipient.screen_name, username)
+        self.assertEqual(destroyed_dm._json, {'Response 204':'No Response Content'})
+        #self.assertEqual(destroyed_dm.text, sent_dm.text)
+        #self.assertEqual(destroyed_dm.id, sent_dm.id)
+        #self.assertEqual(destroyed_dm.sender.screen_name, username)
+        #self.assertEqual(destroyed_dm.recipient.screen_name, username)
 
     @tape.use_cassette('testcreatedestroyfriendship.json')
     def testcreatedestroyfriendship(self):
