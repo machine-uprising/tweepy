@@ -166,6 +166,16 @@ class TweepyAPITests(TweepyTestCase):
     def testsendgetanddestroydirectmessage(self):
         # send
         sent_dm = self.api.send_direct_message(user_id=userid,text='test message')
+        print(sent_dm)
+        try:
+            print(sent_dm._json)
+        except Exception as e:
+            continue
+        try:
+            print(sent_dm.message_create)
+        except Exception as e:
+            continue
+
         self.assertEqual(sent_dm.message_create["message_data"]["text"], 'test message')
         self.assertEqual(sent_dm.message_create["sender_id"], userid)
         self.assertEqual(sent_dm.message_create["target"]["recipient_id"], userid)
