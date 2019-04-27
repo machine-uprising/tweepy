@@ -170,11 +170,11 @@ class TweepyAPITests(TweepyTestCase):
         try:
             print(sent_dm._json)
         except Exception as e:
-            continue
+            print(e)
         try:
             print(sent_dm.message_create)
         except Exception as e:
-            continue
+            print(e)
 
         self.assertEqual(sent_dm.message_create["message_data"]["text"], 'test message')
         self.assertEqual(sent_dm.message_create["sender_id"], userid)
