@@ -179,9 +179,7 @@
             "request": {
                 "method": "GET",
                 "uri": "https://direct_messages/events/show.json?id=795018849905152004",
-                "body": {
-                  "id":795018849905152004
-                },
+                "body": null,
                 "headers": {
                     "Host": [
                         "api.twitter.com"

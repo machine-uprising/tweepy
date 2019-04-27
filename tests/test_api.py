@@ -166,16 +166,6 @@ class TweepyAPITests(TweepyTestCase):
     def testsendgetanddestroydirectmessage(self):
         # send
         sent_dm = self.api.send_direct_message(user_id=userid,text='test message')
-        print(sent_dm)
-        try:
-            print(sent_dm._json)
-        except Exception as e:
-            print(e)
-        try:
-            print(sent_dm.message_create)
-        except Exception as e:
-            print(e)
-
         self.assertEqual(sent_dm.message_create["message_data"]["text"], 'test message')
         self.assertEqual(sent_dm.message_create["sender_id"], userid)
         self.assertEqual(sent_dm.message_create["target"]["recipient_id"], userid)
@@ -190,10 +180,7 @@ class TweepyAPITests(TweepyTestCase):
         # destroy
         destroyed_dm = self.api.destroy_direct_message(sent_dm.id)
         self.assertEqual(destroyed_dm._json, {'Response 204':'No Response Content'})
-        #self.assertEqual(destroyed_dm.text, sent_dm.text)
-        #self.assertEqual(destroyed_dm.id, sent_dm.id)
-        #self.assertEqual(destroyed_dm.sender.screen_name, username)
-        #self.assertEqual(destroyed_dm.recipient.screen_name, username)
+
 
     @tape.use_cassette('testcreatedestroyfriendship.json')
     def testcreatedestroyfriendship(self):
