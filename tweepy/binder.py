@@ -232,8 +232,10 @@ def bind_api(**config):
                                                     proxies=self.api.proxy)
                     else:
                         print("********************************")
+                        print("headers: {}".format(self.session.headers))
                         print("method: {}".format(self.method))
                         print("url: {}".format(full_url))
+                        print("params: {}".format(self.session.params))
                         print("data: {}".format(self.post_data))
                         print("timeout: {}".format(self.api.timeout))
                         print("auth: {}".format(auth))
