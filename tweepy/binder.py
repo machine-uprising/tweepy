@@ -248,6 +248,7 @@ def bind_api(**config):
                                                     auth=auth,
                                                     proxies=self.api.proxy)
                 except Exception as e:
+                    print("Exception: {}".format(e))
                     six.reraise(TweepError, TweepError('Failed to send request: %s' % e), sys.exc_info()[2])
 
                 rem_calls = resp.headers.get('x-rate-limit-remaining')
