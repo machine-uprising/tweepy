@@ -193,7 +193,7 @@
         {
             "response": {
                 "status": {
-                    "message": "",
+                    "message": "No Content",
                     "code": 204
                 },
                 "body": {
@@ -232,7 +232,7 @@
                         "max-age=631138519"
                     ],
                     "status": [
-                        "204"
+                        "204 No Content"
                     ],
                     "pragma": [
                         "no-cache"
