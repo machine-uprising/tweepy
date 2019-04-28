@@ -265,8 +265,8 @@
             },
             "request": {
                 "method": "DELETE",
-                "uri": "https://api.twitter.com/1.1/direct_messages/events/destroy.json?id=795018849905152004",
-                "body": null,
+                "uri": "https://api.twitter.com/1.1/direct_messages/events/destroy.json",
+                "body": {"id":795018849905152004},
                 "headers": {
                     "Host": [
                         "api.twitter.com"
