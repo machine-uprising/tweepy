@@ -56,7 +56,7 @@ def media_async_api(**config):
             self.total_bytes = os.path.getsize(self.media_filename)
             self.media_category = kwargs.pop('media_category',None)
             self.additional_owners = kwargs.pop('additional_owners',None)
-            self.shared_media = kwargs.pop('shared_media',False)
+            self.shared_media = kwargs.pop('shared',False)
             self.media_type = None
             self.file_media_type()
 
@@ -82,7 +82,7 @@ def media_async_api(**config):
             """ Identify the mime type of the file. If mime type
             cannot be identified then TweepError is raised """
             valid_media_types = {
-                'image':['gif','jpg','png'],
+                'image':['gif','jpg','jpeg','png'],
                 'video':['mp4']
             }
 
@@ -191,6 +191,8 @@ def media_async_api(**config):
 
             if self.additional_owners is not None:
                 post_data.update({'additional_owners':self.additional_owners})
+
+            post_data.update({'shared':self.shared_media})
 
             kwargs = dict()
             kwargs.update({'post_data':post_data})

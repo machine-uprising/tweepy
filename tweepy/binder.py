@@ -231,16 +231,6 @@ def bind_api(**config):
                                                     auth=auth,
                                                     proxies=self.api.proxy)
                     else:
-                        print("********************************")
-                        print("headers: {}".format(self.session.headers))
-                        print("method: {}".format(self.method))
-                        print("url: {}".format(full_url))
-                        print("params: {}".format(self.session.params))
-                        print("data: {}".format(self.post_data))
-                        print("timeout: {}".format(self.api.timeout))
-                        print("auth: {}".format(auth))
-                        print("proxies: {}".format(self.api.proxy))
-                        print("********************************")
                         resp = self.session.request(self.method,
                                                     full_url,
                                                     data=self.post_data,
@@ -248,7 +238,6 @@ def bind_api(**config):
                                                     auth=auth,
                                                     proxies=self.api.proxy)
                 except Exception as e:
-                    print("Exception: {}".format(e))
                     six.reraise(TweepError, TweepError('Failed to send request: %s' % e), sys.exc_info()[2])
 
                 rem_calls = resp.headers.get('x-rate-limit-remaining')

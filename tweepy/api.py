@@ -614,6 +614,11 @@ class API(object):
                 raise TweepError(
                     'Media filename not provided for media attachment')
 
+            # Media uploads for Welcome Messages must have the shared property
+            # for the media set to True
+            # https://developer.twitter.com/en/docs/direct-messages/message-attachments/guides/attaching-media
+            media_upload['shared'] = True
+
             media_info = self.media_upload_async(**media_upload)
             if isinstance(media_info,dict):
                 if 'media_id' in media_info.keys():
@@ -667,27 +672,92 @@ class API(object):
         )(**wmkwargs)
 
 
-    def update_welcome_message(self, id, name, text, **kwargs):
+    def update_welcome_message(self, id, **kwargs):
         """ :https://developer.twitter.com/en/docs/direct-messages/welcome-messages/api-reference/update-welcome-message
             :allowed_param: ['id']
+            :note: welcome message updates are atomic
         """
-        message_data_object = {
-            'text':text
-        }
+        # overwrite_flag is a boolean operator to identify whether the welcome
+        # message should be atomically updated only using the new variables
+        # supplied in the kwargs or a non-atomic update that will preserve
+        # the existing welcome message and only update the new variables from
+        # the suppied kwargs
+        overwrite_flag = kwargs.get('overwrite',True)
+
+        if overwrite_flag:
+            current_wm = self.get_welcome_message(id)
+            try:
+                current_wm_name = current_wm.name
+            except Exception as e:
+                current_wm_name = None
+
+            current_wm_data = current_wm.message_data
+
+            # if the current welcome message_data includes CTAs then need to
+            # remove the 'tco_url' property from each CTA
+            if 'ctas' in current_wm_data.keys():
+                for cta in current_wm_data['ctas']:
+                    del cta['tco_url']
+
+            # Remove the 'entities' property from the returned welcome message
+            # response.
+            if 'entities' in current_wm_data.keys():
+                del current_wm_data['entities']
+
+            # Check if media is already attached to the existing welcome message
+            # If there is media then recapture the existing media id to rebuild
+            # the media attachment object
+            if 'attachment' in current_wm_data.keys():
+                current_media_attachment_file = {
+                    'id':current_wm_data['attachment']['media']['id']
+                }
+                current_media_attachment = {
+                    'type':'media',
+                    'media':current_media_attachment_file
+                }
+                current_wm_data['attachment'] = current_media_attachment
+
+            update_wm = {
+                'message_data':current_wm_data
+            }
+            if current_wm_name is not None:
+                update_wm.update({'name':current_wm_name})
+
+        #Build new welcome message object to send update
+        message_data_object = {}
+
+        message_text = kwargs.get('text',None)
+        if message_text is not None:
+            message_data_object['text'] = message_text
+        elif overwrite_flag:
+            message_data_object['text'] = update_wm['message_data']['text']
 
         quick_reply = kwargs.get('quick_reply',None)
         if quick_reply is not None:
             message_data_object['quick_reply'] = quick_reply
+        elif overwrite_flag:
+            quick_reply = update_wm['message_data'].get('quick_reply', None)
+            if quick_reply is not None:
+                message_data_object['quick_reply'] = quick_reply
 
         cta_buttons = kwargs.get('ctas',None)
         if cta_buttons is not None:
             message_data_object['ctas'] = cta_buttons
+        elif overwrite_flag:
+            cta_buttons = update_wm['message_data'].get('ctas',None)
+            if cta_buttons is not None:
+                message_data_object['ctas'] = cta_buttons
 
         media_upload = kwargs.get('media_upload',None)
         if media_upload is not None:
             if 'media_filename' not in media_upload.keys():
                 raise TweepError(
                     'Media filename not provided for media attachment')
+
+            # Media uploads for Welcome Messages must have the shared property
+            # for the media set to True
+            # https://developer.twitter.com/en/docs/direct-messages/message-attachments/guides/attaching-media
+            media_upload['shared'] = True
 
             media_info = self.media_upload_async(**media_upload)
             if isinstance(media_info,dict):
@@ -717,31 +787,35 @@ class API(object):
                     'type not provided for media attachment')
 
             message_data_object["attachment"] = media_attachment
+        elif overwrite_flag:
+            media_attachment = update_wm['message_data'].get('attachment', None)
+            if media_attachment is not None:
+                message_data_object["attachment"] = media_attachment
 
-
-        post_data = {
-            'welcome_message': {
-                'message_data': {
-                    'message_data': message_data_object
-                }
-            }
+        wmkwargs = {
+            'id':id,
+            'message_data': message_data_object
         }
-        if name is not None:
-            post_data.update({'name':name})
 
-        # send_direct_message requires application/json content type and passes
-        # a dictionary object containing the message content
-        headers = {'Content-Type':'application/json'}
-        api_kwargs = {'post_json':True}
+        message_name = kwargs.get("name",None)
+        if message_name is not None:
+            wmkwargs.update({'name':message_name})
+        elif overwrite_flag:
+            message_name = update_wm.get("name",None)
+            if message_name is not None:
+                wmkwargs.update({'name':message_name})
 
         return bind_api(
             api=self,
-            path='/direct_messages/welcome_messages/new.json',
+            path='/direct_messages/welcome_messages/update.json',
             method='PUT',
+            post_json=True,
             payload_type='welcome_message',
             allowed_param=['id'],
+            json_param=['message_data','name'],
             require_auth=True
-        )(post_data=post_data, headers=headers,**api_kwargs)
+        )(**wmkwargs)
+
 
     @property
     def destroy_welcome_message(self):
@@ -757,8 +831,6 @@ class API(object):
             allowed_param=['id'],
             require_auth=True
         )
-
-
 
     @property
     def welcome_message_rules(self):
@@ -792,25 +864,22 @@ class API(object):
             :allowed_param: no parameters are allowed on this endpoint
         """
 
-        post_data = {
+        wmkwargs = {
             'welcome_message_rule': {
                 'welcome_message_id': welcome_message_id
             }
         }
 
-        # send_direct_message requires application/json content type and passes
-        # a dictionary object containing the message content
-        headers = {'Content-Type':'application/json'}
-        api_kwargs = {'post_json':True}
-
         return bind_api(
             api=self,
             path='/direct_messages/welcome_messages/rules/new.json',
             method='POST',
+            post_json=True,
             payload_type='welcome_message_rule',
             allowed_param=[],
+            json_param=['welcome_message_rule'],
             require_auth=True
-        )(post_data=post_data, headers=headers,**api_kwargs)
+        )(**wmkwargs)
 
     @property
     def destroy_welcome_message_rule(self):
