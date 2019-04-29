@@ -167,6 +167,13 @@ Status methods
    :param count: Specifies the number of retweets to retrieve.
    :rtype: list of :class:`Status` objects
 
+.. method:: API.unretweet(id)
+
+   Untweets a retweeted status. Requires the id of the retweet to unretweet.
+
+   :param id: |sid|
+   :rtype: :class:`Status` object
+
 
 User methods
 ------------
@@ -188,7 +195,7 @@ User methods
    :rtype: :class:`User` object
 
 
-.. method::API.friends([id/user_id/screen_name], [cursor], [skip_status], [include_user_entities])
+.. method:: API.friends([id/user_id/screen_name], [cursor], [skip_status], [include_user_entities])
 
    Returns an user's friends ordered in which they were added 100 at a time. If no user is specified it defaults to the authenticated user.
 
